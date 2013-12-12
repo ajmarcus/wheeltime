@@ -1,26 +1,12 @@
 #!/usr/local/bin/python
 
-import math
+import redis, simplejson as json
 from flask import Flask, jsonify, render_template
-from itertools import count
 app = Flask(__name__)
 app.config.from_object('config')
 
-# App
+r = redis.StrictRedis(host='localhost', port=6379, db=0)
 
-# From http://zacharydenton.com/generate-audio-with-python/
-def sine_wave(frequency=440.0, framerate=44100, amplitude=0.5):
-  '''
-  Generate a sine wave at a given frequency of infinite length.
-  '''
-  period = int(framerate / frequency)
-  if amplitude > 1.0: amplitude = 1.0
-  if amplitude < 0.0: amplitude = 0.0
-  lookup_table = [float(amplitude) * math.sin(2.0*math.pi*float(frequency)*(float(i%period)/float(framerate))) for i in xrange(period)]
-  return (lookup_table[i%period]+1 for i in count(0))
-
-finserv = sine_wave(amplitude=0.6)
-tech = sine_wave()
 
 # Routes
 
@@ -28,13 +14,13 @@ tech = sine_wave()
 def hello_world():
   return render_template('index.html')
 
+@app.route('/start')
+def start():
+  return jsonify(results=[ json.loads(item) for item in r.lrange('roll', 0, 200) ])
+
 @app.route('/roll')
 def roll():
-  result = {
-    'finserv':finserv.next(),
-    'tech':tech.next()
-    }
-  return jsonify(result)
+  return jsonify(results=json.loads(r.lindex('roll', 0)))
 
 if __name__ == '__main__':
   app.run()
